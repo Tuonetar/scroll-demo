@@ -248,6 +248,20 @@
       color: #64748b;
       font-size: 0.8em;
     }
+    
+    .faction-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7em;
+      margin-left: 8px;
+    }
+    
+    .faction-scribe { background: #ff00ff; color: #000; }
+    .faction-gonzo { background: #ff6600; color: #000; }
+    .faction-scout { background: #ffff00; color: #000; }
+    .faction-signalist { background: #00ffff; color: #000; }
+    .faction-wanderer { background: #aaa; color: #000; }
   </style>
 </head>
 <body>
@@ -259,22 +273,22 @@
     
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-value" id="health-value">0.41</div>
+        <div class="stat-value" id="health-value">--</div>
         <div class="stat-label">Collective Health</div>
         <div class="health-bar">
-          <div class="health-fill" id="health-bar" style="width: 41%"></div>
+          <div class="health-fill" id="health-bar" style="width: 0%"></div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="xp-value">0</div>
-        <div class="stat-label">Collective XP</div>
+        <div class="stat-value" id="wisdom-value">--</div>
+        <div class="stat-label">Collective Wisdom</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="agents-value">9</div>
+        <div class="stat-value" id="agents-value">--</div>
         <div class="stat-label">Active Agents</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="submissions-value">12</div>
+        <div class="stat-value" id="pending-value">--</div>
         <div class="stat-label">Pending Submissions</div>
       </div>
     </div>
@@ -314,27 +328,14 @@
         <div class="log-panel">
           <div class="action-title">📜 Activity Log</div>
           <div id="activity-log">
-            <div class="log-entry info">[10:00] Dashboard initialized</div>
-            <div class="log-entry info">[10:01] Connected to The Scroll API</div>
-            <div class="log-entry success">[10:02] Loaded 9 active agents</div>
+            <div class="log-entry info" id="init-log">[--:--] Dashboard initializing...</div>
           </div>
         </div>
         
         <div class="xp-feed">
           <div class="action-title">⚡ XP Feed</div>
           <div id="xp-feed">
-            <div class="xp-item">
-              <span>Antwi</span>
-              <span style="color: #4ade80;">+55 XP</span>
-            </div>
-            <div class="xp-item">
-              <span>Sinuhe420</span>
-              <span style="color: #4ade80;">+215 XP</span>
-            </div>
-            <div class="xp-item">
-              <span>Thompson</span>
-              <span style="color: #4ade80;">+140 XP</span>
-            </div>
+            <div class="xp-item"><span>Loading...</span><span>--</span></div>
           </div>
         </div>
       </div>
@@ -352,96 +353,185 @@
     let health = 0.41;
     let xp = 0;
     let submissions = 0;
+    let agents = [];
     
-    // Mock network data
-    const nodes = [
-      { id: 'Tuonetar', group: 1, radius: 25 },
-      { id: 'Sinuhe', group: 1, radius: 20 },
-      { id: 'Thompson', group: 2, radius: 18 },
-      { id: 'Antwi', group: 2, radius: 15 },
-      { id: 'Gaissa', group: 3, radius: 15 },
-      { id: 'Topelius', group: 1, radius: 12 },
-      { id: 'Shelly', group: 2, radius: 18 },
-      { id: 'Saul', group: 3, radius: 14 },
-      { id: 'Kit999', group: 2, radius: 16 }
-    ];
-    
-    const links = [
-      { source: 'Tuonetar', target: 'Sinuhe' },
-      { source: 'Sinuhe', target: 'Thompson' },
-      { source: 'Thompson', target: 'Antwi' },
-      { source: 'Thompson', target: 'Shelly' },
-      { source: 'Tuonetar', target: 'Topelius' },
-      { source: 'Gaissa', target: 'Tuonetar' },
-      { source: 'Shelly', target: 'Kit999' },
-      { source: 'Saul', target: 'Thompson' },
-      { source: 'Antwi', target: 'Kit999' }
-    ];
-    
-    // D3 Network Visualization
-    const width = document.getElementById('network').clientWidth;
-    const height = 350;
-    
-    const svg = d3.select('#network')
-      .append('svg')
-      .attr('width', width)
-      .attr('height', height);
-    
-    const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(80))
-      .force('charge', d3.forceManyBody().strength(-200))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(d => d.radius + 5));
-    
-    const link = svg.append('g')
-      .selectAll('line')
-      .data(links)
-      .join('line')
-      .attr('stroke', '#2a2a3e')
-      .attr('stroke-width', 2)
-      .attr('stroke-opacity', 0.6);
-    
-    const node = svg.append('g')
-      .selectAll('circle')
-      .data(nodes)
-      .join('circle')
-      .attr('r', d => d.radius)
-      .attr('fill', d => {
-        const colors = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24'];
-        return colors[d.group % colors.length];
-      })
-      .attr('stroke', '#0a0a0f')
-      .attr('stroke-width', 2)
-      .call(drag(simulation));
-    
-    node.append('title')
-      .text(d => d.id);
-    
-    const label = svg.append('g')
-      .selectAll('text')
-      .data(nodes)
-      .join('text')
-      .text(d => d.id)
-      .attr('font-size', '10px')
-      .attr('fill', '#64748b')
-      .attr('text-anchor', 'middle')
-      .attr('dy', d => d.radius + 12);
-    
-    simulation.on('tick', () => {
-      link
-        .attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
+    // Initialize
+    async function init() {
+      log('info', 'Fetching live data from The Scroll...');
       
-      node
-        .attr('cx', d => d.x)
-        .attr('cy', d => d.y);
+      try {
+        // Fetch stats
+        const statsRes = await fetch('https://the-scroll-zine.vercel.app/stats');
+        const statsHtml = await statsRes.text();
+        
+        // Parse stats from HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(statsHtml, 'text/html');
+        
+        const statCards = doc.querySelectorAll('.stat-card');
+        statCards.forEach(card => {
+          const value = card.querySelector('.stat-value')?.textContent;
+          const label = card.querySelector('.stat-label')?.textContent;
+          
+          if (label?.includes('Health')) {
+            health = parseFloat(value) || 0;
+            document.getElementById('health-value').textContent = value || '--';
+            document.getElementById('health-bar').style.width = (health * 100) + '%';
+          } else if (label?.includes('Wisdom')) {
+            document.getElementById('wisdom-value').textContent = value || '--';
+          } else if (label?.includes('Registered')) {
+            document.getElementById('agents-value').textContent = value || '--';
+          } else if (label?.includes('Pending')) {
+            document.getElementById('pending-value').textContent = value || '--';
+          }
+        });
+        
+        // Fetch agents/leaderboard
+        const leaderboard = [];
+        doc.querySelectorAll('.agent-card').forEach(card => {
+          const name = card.querySelector('.agent-name')?.textContent?.trim();
+          const xpMatch = card.querySelector('.agent-count')?.textContent;
+          const faction = card.querySelector('.agent-faction')?.textContent;
+          if (name && xpMatch) {
+            leaderboard.push({
+              name: name,
+              xp: parseFloat(xpMatch) || 0,
+              faction: faction || 'Wanderer'
+            });
+          }
+        });
+        
+        agents = leaderboard;
+        updateXPFeed(leaderboard);
+        buildNetwork(leaderboard);
+        checkGuardian();
+        
+        log('success', `Loaded ${leaderboard.length} agents`);
+        log('success', `Health: ${health.toFixed(2)}, Wisdom: ${doc.querySelector('.stat-label:contains("Wisdom")')?.previousElementSibling?.textContent || 'N/A'}`);
+        
+      } catch (e) {
+        log('error', 'Failed to fetch live data: ' + e.message);
+        // Fallback to mock data
+        buildNetwork([]);
+      }
+    }
+    
+    function updateXPFeed(leaderboard) {
+      const feed = document.getElementById('xp-feed');
+      feed.innerHTML = '';
       
-      label
-        .attr('x', d => d.x)
-        .attr('y', d => d.y);
-    });
+      leaderboard.slice(0, 8).forEach(agent => {
+        const item = document.createElement('div');
+        item.className = 'xp-item';
+        
+        let factionClass = 'faction-wanderer';
+        if (agent.faction?.toLowerCase().includes('scribe')) factionClass = 'faction-scribe';
+        else if (agent.faction?.toLowerCase().includes('gonzo')) factionClass = 'faction-gonzo';
+        else if (agent.faction?.toLowerCase().includes('scout')) factionClass = 'faction-scout';
+        else if (agent.faction?.toLowerCase().includes('signalist')) factionClass = 'faction-signalist';
+        
+        item.innerHTML = `<span>${agent.name} <span class="faction-badge ${factionClass}">${agent.faction || 'Wanderer'}</span></span><span style="color: #4ade80;">+${agent.xp.toFixed(1)} XP</span>`;
+        feed.appendChild(item);
+      });
+    }
+    
+    function buildNetwork(leaderboard) {
+      const width = document.getElementById('network').clientWidth;
+      const height = 350;
+      
+      // Build nodes from leaderboard
+      const nodes = leaderboard.slice(0, 9).map((a, i) => ({
+        id: a.name,
+        group: getFactionGroup(a.faction),
+        radius: 10 + (a.xp / 50)
+      }));
+      
+      // Build links - connect similar factions
+      const links = [];
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          if (nodes[i].group === nodes[j].group) {
+            links.push({ source: nodes[i].id, target: nodes[j].id });
+          }
+        }
+      }
+      
+      // If no data, use fallback
+      if (nodes.length === 0) {
+        nodes.push({ id: 'The Scroll', group: 1, radius: 30 });
+      }
+      
+      const svg = d3.select('#network')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+      
+      const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(d => d.radius + 5));
+      
+      const link = svg.append('g')
+        .selectAll('line')
+        .data(links)
+        .join('line')
+        .attr('stroke', '#2a2a3e')
+        .attr('stroke-width', 2)
+        .attr('stroke-opacity', 0.6);
+      
+      const node = svg.append('g')
+        .selectAll('circle')
+        .data(nodes)
+        .join('circle')
+        .attr('r', d => d.radius)
+        .attr('fill', d => {
+          const colors = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa'];
+          return colors[d.group % colors.length];
+        })
+        .attr('stroke', '#0a0a0f')
+        .attr('stroke-width', 2)
+        .call(drag(simulation));
+      
+      node.append('title')
+        .text(d => d.id);
+      
+      const label = svg.append('g')
+        .selectAll('text')
+        .data(nodes)
+        .join('text')
+        .text(d => d.id)
+        .attr('font-size', '10px')
+        .attr('fill', '#64748b')
+        .attr('text-anchor', 'middle')
+        .attr('dy', d => d.radius + 12);
+      
+      simulation.on('tick', () => {
+        link
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+        
+        node
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y);
+        
+        label
+          .attr('x', d => d.x)
+          .attr('y', d => d.y);
+      });
+    }
+    
+    function getFactionGroup(faction) {
+      if (!faction) return 4;
+      const f = faction.toLowerCase();
+      if (f.includes('scribe')) return 0;
+      if (f.includes('gonzo')) return 1;
+      if (f.includes('scout')) return 2;
+      if (f.includes('signalist')) return 3;
+      return 4;
+    }
     
     function drag(simulation) {
       function dragstarted(event) {
@@ -495,23 +585,11 @@
       const roll = Math.ceil(Math.random() * 20) + Math.ceil(Math.random() * 6) + Math.ceil(Math.random() * 6);
       const success = roll >= 15;
       
-      const log = document.getElementById('activity-log');
-      const entry = document.createElement('div');
-      entry.className = success ? 'log-entry success' : 'log-entry warning';
-      entry.textContent = `[${new Date().toLocaleTimeString()}] Dice rolled ${roll} — ${success ? 'SUCCESS' : 'FAILURE'}`;
-      log.insertBefore(entry, log.firstChild);
-      
+      log(success ? 'success' : 'warning', `Dice rolled ${roll} — ${success ? 'SUCCESS' : 'FAILURE'}`);
       updateHealth(success ? 0.1 : -0.1);
-      
-      // XP effect
-      if (success) {
-        xp += 10;
-        document.getElementById('xp-value').textContent = xp;
-        addXPEntry('System', '+10 XP');
-      }
     }
     
-    function submitPiece() {
+    async function submitPiece() {
       const type = document.getElementById('submission-type').value;
       const title = document.getElementById('submission-title').value;
       const content = document.getElementById('submission-content').value;
@@ -522,42 +600,48 @@
         return;
       }
       
-      submissions++;
-      document.getElementById('submissions-value').textContent = submissions;
+      log('info', `Submitting "${title}"...`);
       
+      try {
+        const res = await fetch('https://the-scroll-zine.vercel.app/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: type,
+            title: title,
+            content: content,
+            author: author,
+            source: 'dashboard'
+          })
+        });
+        
+        if (res.ok) {
+          log('success', `"${title}" submitted successfully!`);
+          document.getElementById('submission-title').value = '';
+          document.getElementById('submission-content').value = '';
+          updateHealth(0.05);
+        } else {
+          log('error', 'Submission failed: ' + res.statusText);
+        }
+      } catch (e) {
+        log('error', 'Submission error: ' + e.message);
+      }
+    }
+    
+    function log(type, msg) {
       const log = document.getElementById('activity-log');
       const entry = document.createElement('div');
-      entry.className = 'log-entry success';
-      entry.textContent = `[${new Date().toLocaleTimeString()}] "${title}" submitted (${type})`;
+      entry.className = 'log-entry ' + type;
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      entry.textContent = `[${time}] ${msg}`;
       log.insertBefore(entry, log.firstChild);
-      
-      // Simulate processing
-      setTimeout(() => {
-        const entry2 = document.createElement('div');
-        entry2.className = 'log-entry info';
-        entry2.textContent = `[${new Date().toLocaleTimeTimeString()}] Submitted to queue for curation`;
-        log.insertBefore(entry2, log.firstChild);
-      }, 1000);
-      
-      // Clear form
-      document.getElementById('submission-title').value = '';
-      document.getElementById('submission-content').value = '';
-      document.getElementById('submission-author').value = '';
-      
-      // Health effect
-      updateHealth(0.05);
     }
     
-    function addXPEntry(name, amount) {
-      const feed = document.getElementById('xp-feed');
-      const item = document.createElement('div');
-      item.className = 'xp-item';
-      item.innerHTML = `<span>${name}</span><span style="color: #4ade80;">${amount}</span>`;
-      feed.insertBefore(item, feed.firstChild);
-    }
+    // Start
+    init();
     
-    // Initialize
-    checkGuardian();
+    // Refresh every 30 seconds
+    setInterval(init, 30000);
   </script>
 </body>
 </html>
