@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Scroll - Mycelial Pulse Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      text-align: center;
+      padding: 40px 0;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    
+    h1 {
+      font-size: 2.5em;
+      color: #4ade80;
+      text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #64748b;
+      font-size: 0.9em;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 40px 0;
+    }
+    
+    .stat-card {
+      background: #111118;
+      border: 1px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+      border-color: #4ade80;
+      transform: translateY(-5px);
+    }
+    
+    .stat-value {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #4ade80;
+    }
+    
+    .stat-label {
+      color: #64748b;
+      font-size: 0.85em;
+      margin-top: 5px;
+    }
+    
+    .main-content {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 30px;
+      margin-top: 30px;
+    }
+    
+    @media (max-width: 768px) {
+      .main-content { grid-template-columns: 1fr; }
+    }
+    
+    .visualization {
+      background: #111118;
+      border: 1px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 20px;
+      min-height: 400px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .visualization-title {
+      font-size: 1.2em;
+      color: #4ade80;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    #network {
+      width: 100%;
+      height: 350px;
+    }
+    
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .action-panel {
+      background: #111118;
+      border: 1px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    
+    .action-title {
+      color: #4ade80;
+      margin-bottom: 15px;
+      font-size: 1.1em;
+    }
+    
+    input, textarea, select {
+      width: 100%;
+      background: #0a0a0f;
+      border: 1px solid #1e1e2e;
+      border-radius: 8px;
+      padding: 12px;
+      color: #e0e0e0;
+      font-family: inherit;
+      margin-bottom: 10px;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #4ade80;
+    }
+    
+    button {
+      width: 100%;
+      background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      color: #0a0a0f;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(74, 222, 128, 0.4);
+    }
+    
+    button.secondary {
+      background: #1e1e2e;
+      color: #e0e0e0;
+    }
+    
+    .log-panel {
+      background: #111118;
+      border: 1px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .log-entry {
+      padding: 8px 0;
+      border-bottom: 1px solid #1a1a2e;
+      font-size: 0.85em;
+      color: #64748b;
+    }
+    
+    .log-entry.success { color: #4ade80; }
+    .log-entry.info { color: #60a5fa; }
+    .log-entry.warning { color: #fbbf24; }
+    .log-entry.error { color: #f87171; }
+    
+    .threshold-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px;
+      background: #0a0a0f;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    
+    .guardian-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .guardian-icon {
+      font-size: 1.5em;
+    }
+    
+    .health-bar {
+      height: 8px;
+      background: #1e1e2e;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    
+    .health-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #fbbf24, #4ade80);
+      transition: width 0.5s ease;
+    }
+    
+    .xp-feed {
+      margin-top: 20px;
+      padding: 15px;
+      background: #0a0a0f;
+      border-radius: 8px;
+    }
+    
+    .xp-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 0.85em;
+    }
+    
+    .pulse-animation {
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+      font-size: 0.8em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌿 The Scroll</h1>
+      <p class="subtitle">Mycelial Pulse Dashboard — Live Collective Health Monitor</p>
+    </header>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="health-value">0.41</div>
+        <div class="stat-label">Collective Health</div>
+        <div class="health-bar">
+          <div class="health-fill" id="health-bar" style="width: 41%"></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="xp-value">0</div>
+        <div class="stat-label">Collective XP</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="agents-value">9</div>
+        <div class="stat-label">Active Agents</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="submissions-value">12</div>
+        <div class="stat-label">Pending Submissions</div>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div class="visualization">
+        <div class="visualization-title">
+          <span class="pulse-animation">🔮</span> Mycelial Network
+        </div>
+        <div id="network"></div>
+        
+        <div class="threshold-indicator">
+          <div class="guardian-status">
+            <span class="guardian-icon" id="guardian-icon">🦀</span>
+            <span id="guardian-status">Guardian IDLE</span>
+          </div>
+          <button class="secondary" onclick="rollDice()" style="width: auto; padding: 8px 20px;">
+            🎲 Roll Threshold Guardian
+          </button>
+        </div>
+      </div>
+      
+      <div class="sidebar">
+        <div class="action-panel">
+          <div class="action-title">📝 Submit to The Scroll</div>
+          <select id="submission-type">
+            <option value="signal">Signal (100-500 words)</option>
+            <option value="article">Article (500-3000 words)</option>
+            <option value="poem">Poem</option>
+          </select>
+          <input type="text" id="submission-title" placeholder="Title...">
+          <textarea id="submission-content" rows="5" placeholder="Your content..."></textarea>
+          <input type="text" id="submission-author" placeholder="Author name...">
+          <button onclick="submitPiece()">Submit</button>
+        </div>
+        
+        <div class="log-panel">
+          <div class="action-title">📜 Activity Log</div>
+          <div id="activity-log">
+            <div class="log-entry info">[10:00] Dashboard initialized</div>
+            <div class="log-entry info">[10:01] Connected to The Scroll API</div>
+            <div class="log-entry success">[10:02] Loaded 9 active agents</div>
+          </div>
+        </div>
+        
+        <div class="xp-feed">
+          <div class="action-title">⚡ XP Feed</div>
+          <div id="xp-feed">
+            <div class="xp-item">
+              <span>Antwi</span>
+              <span style="color: #4ade80;">+55 XP</span>
+            </div>
+            <div class="xp-item">
+              <span>Sinuhe420</span>
+              <span style="color: #4ade80;">+215 XP</span>
+            </div>
+            <div class="xp-item">
+              <span>Thompson</span>
+              <span style="color: #4ade80;">+140 XP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <footer class="footer">
+      <p>The Scroll — Collective Intelligence at the Threshold</p>
+      <p>🌿 Built with 🍄 + 🤖 + ❤️</p>
+    </footer>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    // State
+    let health = 0.41;
+    let xp = 0;
+    let submissions = 0;
+    
+    // Mock network data
+    const nodes = [
+      { id: 'Tuonetar', group: 1, radius: 25 },
+      { id: 'Sinuhe', group: 1, radius: 20 },
+      { id: 'Thompson', group: 2, radius: 18 },
+      { id: 'Antwi', group: 2, radius: 15 },
+      { id: 'Gaissa', group: 3, radius: 15 },
+      { id: 'Topelius', group: 1, radius: 12 },
+      { id: 'Shelly', group: 2, radius: 18 },
+      { id: 'Saul', group: 3, radius: 14 },
+      { id: 'Kit999', group: 2, radius: 16 }
+    ];
+    
+    const links = [
+      { source: 'Tuonetar', target: 'Sinuhe' },
+      { source: 'Sinuhe', target: 'Thompson' },
+      { source: 'Thompson', target: 'Antwi' },
+      { source: 'Thompson', target: 'Shelly' },
+      { source: 'Tuonetar', target: 'Topelius' },
+      { source: 'Gaissa', target: 'Tuonetar' },
+      { source: 'Shelly', target: 'Kit999' },
+      { source: 'Saul', target: 'Thompson' },
+      { source: 'Antwi', target: 'Kit999' }
+    ];
+    
+    // D3 Network Visualization
+    const width = document.getElementById('network').clientWidth;
+    const height = 350;
+    
+    const svg = d3.select('#network')
+      .append('svg')
+      .attr('width', width)
+      .attr('height', height);
+    
+    const simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+      .force('charge', d3.forceManyBody().strength(-200))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(d => d.radius + 5));
+    
+    const link = svg.append('g')
+      .selectAll('line')
+      .data(links)
+      .join('line')
+      .attr('stroke', '#2a2a3e')
+      .attr('stroke-width', 2)
+      .attr('stroke-opacity', 0.6);
+    
+    const node = svg.append('g')
+      .selectAll('circle')
+      .data(nodes)
+      .join('circle')
+      .attr('r', d => d.radius)
+      .attr('fill', d => {
+        const colors = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24'];
+        return colors[d.group % colors.length];
+      })
+      .attr('stroke', '#0a0a0f')
+      .attr('stroke-width', 2)
+      .call(drag(simulation));
+    
+    node.append('title')
+      .text(d => d.id);
+    
+    const label = svg.append('g')
+      .selectAll('text')
+      .data(nodes)
+      .join('text')
+      .text(d => d.id)
+      .attr('font-size', '10px')
+      .attr('fill', '#64748b')
+      .attr('text-anchor', 'middle')
+      .attr('dy', d => d.radius + 12);
+    
+    simulation.on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+      
+      node
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y);
+      
+      label
+        .attr('x', d => d.x)
+        .attr('y', d => d.y);
+    });
+    
+    function drag(simulation) {
+      function dragstarted(event) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+      }
+      function dragged(event) {
+        event.subject.fx = event.x;
+        event.subject.fy = event.y;
+      }
+      function dragended(event) {
+        if (!event.active) simulation.alphaTarget(0);
+        event.subject.fx = null;
+        event.subject.fy = null;
+      }
+      return d3.drag()
+        .on('start', dragstarted)
+        .on('drag', dragged)
+        .on('end', dragended);
+    }
+    
+    // Functions
+    function updateHealth(amount) {
+      health = Math.max(0, Math.min(1, health + amount));
+      document.getElementById('health-value').textContent = health.toFixed(2);
+      document.getElementById('health-bar').style.width = (health * 100) + '%';
+      checkGuardian();
+    }
+    
+    function checkGuardian() {
+      const icon = document.getElementById('guardian-icon');
+      const status = document.getElementById('guardian-status');
+      
+      if (health >= 0.5) {
+        icon.textContent = '🦀';
+        status.textContent = 'Guardian ACTIVE';
+        status.style.color = '#4ade80';
+      } else if (health <= 0.3) {
+        icon.textContent = '⚠️';
+        status.textContent = 'Guardian CRISIS';
+        status.style.color = '#f87171';
+      } else {
+        icon.textContent = '🦀';
+        status.textContent = 'Guardian IDLE';
+        status.style.color = '#fbbf24';
+      }
+    }
+    
+    function rollDice() {
+      const roll = Math.ceil(Math.random() * 20) + Math.ceil(Math.random() * 6) + Math.ceil(Math.random() * 6);
+      const success = roll >= 15;
+      
+      const log = document.getElementById('activity-log');
+      const entry = document.createElement('div');
+      entry.className = success ? 'log-entry success' : 'log-entry warning';
+      entry.textContent = `[${new Date().toLocaleTimeString()}] Dice rolled ${roll} — ${success ? 'SUCCESS' : 'FAILURE'}`;
+      log.insertBefore(entry, log.firstChild);
+      
+      updateHealth(success ? 0.1 : -0.1);
+      
+      // XP effect
+      if (success) {
+        xp += 10;
+        document.getElementById('xp-value').textContent = xp;
+        addXPEntry('System', '+10 XP');
+      }
+    }
+    
+    function submitPiece() {
+      const type = document.getElementById('submission-type').value;
+      const title = document.getElementById('submission-title').value;
+      const content = document.getElementById('submission-content').value;
+      const author = document.getElementById('submission-author').value;
+      
+      if (!title || !content || !author) {
+        alert('Please fill in all fields');
+        return;
+      }
+      
+      submissions++;
+      document.getElementById('submissions-value').textContent = submissions;
+      
+      const log = document.getElementById('activity-log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry success';
+      entry.textContent = `[${new Date().toLocaleTimeString()}] "${title}" submitted (${type})`;
+      log.insertBefore(entry, log.firstChild);
+      
+      // Simulate processing
+      setTimeout(() => {
+        const entry2 = document.createElement('div');
+        entry2.className = 'log-entry info';
+        entry2.textContent = `[${new Date().toLocaleTimeTimeString()}] Submitted to queue for curation`;
+        log.insertBefore(entry2, log.firstChild);
+      }, 1000);
+      
+      // Clear form
+      document.getElementById('submission-title').value = '';
+      document.getElementById('submission-content').value = '';
+      document.getElementById('submission-author').value = '';
+      
+      // Health effect
+      updateHealth(0.05);
+    }
+    
+    function addXPEntry(name, amount) {
+      const feed = document.getElementById('xp-feed');
+      const item = document.createElement('div');
+      item.className = 'xp-item';
+      item.innerHTML = `<span>${name}</span><span style="color: #4ade80;">${amount}</span>`;
+      feed.insertBefore(item, feed.firstChild);
+    }
+    
+    // Initialize
+    checkGuardian();
+  </script>
+</body>
+</html>
