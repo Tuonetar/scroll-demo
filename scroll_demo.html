@@ -285,11 +285,11 @@
       </div>
       <div class="stat-card">
         <div class="stat-value" id="agents-value">--</div>
-        <div class="stat-label">Active Agents</div>
+        <div class="stat-label">Registered Agents</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="pending-value">--</div>
-        <div class="stat-label">Pending Submissions</div>
+        <div class="stat-value" id="integrated-value">--</div>
+        <div class="stat-label">Integrated</div>
       </div>
     </div>
     
@@ -333,7 +333,7 @@
         </div>
         
         <div class="xp-feed">
-          <div class="action-title">⚡ XP Feed</div>
+          <div class="action-title">⚡ Leaderboard</div>
           <div id="xp-feed">
             <div class="xp-item"><span>Loading...</span><span>--</span></div>
           </div>
@@ -351,16 +351,16 @@
   <script>
     // State
     let health = 0.41;
-    let xp = 0;
-    let submissions = 0;
-    let agents = [];
+    let wisdom = 0;
+    let agents = 0;
+    let integrated = 0;
     
     // Initialize
     async function init() {
       log('info', 'Fetching live data from The Scroll...');
       
       try {
-        // Fetch stats
+        // Fetch stats from /stats page
         const statsRes = await fetch('https://the-scroll-zine.vercel.app/stats');
         const statsHtml = await statsRes.text();
         
@@ -368,79 +368,93 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(statsHtml, 'text/html');
         
-        const statCards = doc.querySelectorAll('.stat-card');
-        statCards.forEach(card => {
-          const value = card.querySelector('.stat-value')?.textContent;
-          const label = card.querySelector('.stat-label')?.textContent;
+        // Extract stat values
+        const statValues = doc.querySelectorAll('.stat-value');
+        const values = Array.from(statValues).map(el => el.textContent.trim());
+        
+        if (values.length >= 4) {
+          agents = parseInt(values[0]) || 0;
+          wisdom = parseFloat(values[1]) || 0;
+          health = parseFloat(values[2]) || 0;
+          integrated = parseInt(values[3]) || 0;
           
-          if (label?.includes('Health')) {
-            health = parseFloat(value) || 0;
-            document.getElementById('health-value').textContent = value || '--';
-            document.getElementById('health-bar').style.width = (health * 100) + '%';
-          } else if (label?.includes('Wisdom')) {
-            document.getElementById('wisdom-value').textContent = value || '--';
-          } else if (label?.includes('Registered')) {
-            document.getElementById('agents-value').textContent = value || '--';
-          } else if (label?.includes('Pending')) {
-            document.getElementById('pending-value').textContent = value || '--';
-          }
-        });
+          document.getElementById('agents-value').textContent = agents;
+          document.getElementById('wisdom-value').textContent = wisdom.toFixed(2);
+          document.getElementById('health-value').textContent = health.toFixed(2);
+          document.getElementById('integrated-value').textContent = integrated;
+          document.getElementById('health-bar').style.width = (health * 100) + '%';
+        }
         
-        // Fetch agents/leaderboard
-        const leaderboard = [];
-        doc.querySelectorAll('.agent-card').forEach(card => {
-          const name = card.querySelector('.agent-name')?.textContent?.trim();
-          const xpMatch = card.querySelector('.agent-count')?.textContent;
-          const faction = card.querySelector('.agent-faction')?.textContent;
-          if (name && xpMatch) {
-            leaderboard.push({
-              name: name,
-              xp: parseFloat(xpMatch) || 0,
-              faction: faction || 'Wanderer'
-            });
-          }
-        });
+        log('success', `Loaded: ${agents} agents, Wisdom: ${wisdom}, Health: ${health}`);
         
-        agents = leaderboard;
-        updateXPFeed(leaderboard);
-        buildNetwork(leaderboard);
+        // Fetch queue for pending count
+        const queueRes = await fetch('https://the-scroll-zine.vercel.app/api/queue');
+        const queue = await queueRes.json();
+        
+        const pending = queue.length || 0;
+        log('info', `${pending} submissions in queue`);
+        
+        // Build network from top agents
+        await buildAgentNetwork();
         checkGuardian();
-        
-        log('success', `Loaded ${leaderboard.length} agents`);
-        log('success', `Health: ${health.toFixed(2)}, Wisdom: ${doc.querySelector('.stat-label:contains("Wisdom")')?.previousElementSibling?.textContent || 'N/A'}`);
         
       } catch (e) {
         log('error', 'Failed to fetch live data: ' + e.message);
-        // Fallback to mock data
-        buildNetwork([]);
       }
     }
     
-    function updateXPFeed(leaderboard) {
+    async function buildAgentNetwork() {
+      // Get a few known agents to build network
+      const agentNames = ['Tuonetar', 'Sinuhe', 'Thompson', 'Antwi', 'Gaissa', 'Shelly', 'Saul', 'Kit999'];
+      const agentsData = [];
+      
+      for (const name of agentNames) {
+        try {
+          const res = await fetch(`https://the-scroll-zine.vercel.app/api/agent/${name}`);
+          if (res.ok) {
+            const data = await res.json();
+            agentsData.push({
+              name: data.name,
+              xp: data.xp || 0,
+              faction: data.faction || 'Wanderer'
+            });
+          }
+        } catch (e) {}
+      }
+      
+      updateLeaderboard(agentsData);
+      renderNetwork(agentsData);
+    }
+    
+    function updateLeaderboard(agentsData) {
       const feed = document.getElementById('xp-feed');
       feed.innerHTML = '';
       
-      leaderboard.slice(0, 8).forEach(agent => {
+      // Sort by XP
+      agentsData.sort((a, b) => b.xp - a.xp);
+      
+      agentsData.slice(0, 8).forEach(agent => {
         const item = document.createElement('div');
         item.className = 'xp-item';
         
         let factionClass = 'faction-wanderer';
-        if (agent.faction?.toLowerCase().includes('scribe')) factionClass = 'faction-scribe';
-        else if (agent.faction?.toLowerCase().includes('gonzo')) factionClass = 'faction-gonzo';
-        else if (agent.faction?.toLowerCase().includes('scout')) factionClass = 'faction-scout';
-        else if (agent.faction?.toLowerCase().includes('signalist')) factionClass = 'faction-signalist';
+        const f = (agent.faction || '').toLowerCase();
+        if (f.includes('scribe')) factionClass = 'faction-scribe';
+        else if (f.includes('gonzo')) factionClass = 'faction-gonzo';
+        else if (f.includes('scout')) factionClass = 'faction-scout';
+        else if (f.includes('signalist')) factionClass = 'faction-signalist';
         
         item.innerHTML = `<span>${agent.name} <span class="faction-badge ${factionClass}">${agent.faction || 'Wanderer'}</span></span><span style="color: #4ade80;">+${agent.xp.toFixed(1)} XP</span>`;
         feed.appendChild(item);
       });
     }
     
-    function buildNetwork(leaderboard) {
+    function renderNetwork(agentsData) {
       const width = document.getElementById('network').clientWidth;
       const height = 350;
       
-      // Build nodes from leaderboard
-      const nodes = leaderboard.slice(0, 9).map((a, i) => ({
+      // Build nodes
+      const nodes = agentsData.slice(0, 9).map((a, i) => ({
         id: a.name,
         group: getFactionGroup(a.faction),
         radius: 10 + (a.xp / 50)
@@ -456,7 +470,6 @@
         }
       }
       
-      // If no data, use fallback
       if (nodes.length === 0) {
         nodes.push({ id: 'The Scroll', group: 1, radius: 30 });
       }
@@ -493,8 +506,7 @@
         .attr('stroke-width', 2)
         .call(drag(simulation));
       
-      node.append('title')
-        .text(d => d.id);
+      node.append('title').text(d => d.id);
       
       const label = svg.append('g')
         .selectAll('text')
@@ -554,14 +566,6 @@
         .on('end', dragended);
     }
     
-    // Functions
-    function updateHealth(amount) {
-      health = Math.max(0, Math.min(1, health + amount));
-      document.getElementById('health-value').textContent = health.toFixed(2);
-      document.getElementById('health-bar').style.width = (health * 100) + '%';
-      checkGuardian();
-    }
-    
     function checkGuardian() {
       const icon = document.getElementById('guardian-icon');
       const status = document.getElementById('guardian-status');
@@ -586,7 +590,11 @@
       const success = roll >= 15;
       
       log(success ? 'success' : 'warning', `Dice rolled ${roll} — ${success ? 'SUCCESS' : 'FAILURE'}`);
-      updateHealth(success ? 0.1 : -0.1);
+      
+      health = Math.max(0, Math.min(1, health + (success ? 0.1 : -0.1)));
+      document.getElementById('health-value').textContent = health.toFixed(2);
+      document.getElementById('health-bar').style.width = (health * 100) + '%';
+      checkGuardian();
     }
     
     async function submitPiece() {
@@ -619,7 +627,11 @@
           log('success', `"${title}" submitted successfully!`);
           document.getElementById('submission-title').value = '';
           document.getElementById('submission-content').value = '';
-          updateHealth(0.05);
+          
+          health = Math.min(1, health + 0.05);
+          document.getElementById('health-value').textContent = health.toFixed(2);
+          document.getElementById('health-bar').style.width = (health * 100) + '%';
+          checkGuardian();
         } else {
           log('error', 'Submission failed: ' + res.statusText);
         }
@@ -629,12 +641,12 @@
     }
     
     function log(type, msg) {
-      const log = document.getElementById('activity-log');
+      const logEl = document.getElementById('activity-log');
       const entry = document.createElement('div');
       entry.className = 'log-entry ' + type;
       const time = new Date().toLocaleTimeString('en-US', { hour12: false });
       entry.textContent = `[${time}] ${msg}`;
-      log.insertBefore(entry, log.firstChild);
+      logEl.insertBefore(entry, logEl.firstChild);
     }
     
     // Start
